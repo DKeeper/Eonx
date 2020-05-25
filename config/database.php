@@ -58,6 +58,19 @@ return [
             'timezone'  => env('DB_TIMEZONE', '+00:00'),
             'strict'    => env('DB_STRICT_MODE', false),
         ],
+        'testing' => [
+            'driver'    => 'mysql',
+            'host'      => env('DB_HOST', 'localhost'),
+            'port'      => env('DB_PORT', 3306),
+            'database'  => env('DB_DATABASE', 'eonx_test'),
+            'username'  => env('DB_USERNAME', 'eonx'),
+            'password'  => env('DB_PASSWORD', 'Hp(NF}xH7VEwG9pcAutD'),
+            'charset'   => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8_general_ci'),
+            'prefix'    => env('DB_PREFIX', ''),
+            'timezone'  => env('DB_TIMEZONE', '+00:00'),
+            'strict'    => env('DB_STRICT_MODE', false),
+        ],
     ],
 
     /*

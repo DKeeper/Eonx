@@ -71,6 +71,7 @@ class ListsControllerTest extends ListTestCase
     public function testRemoveListSuccessfully(): void
     {
         $this->post('/mailchimp/lists', static::$listData);
+        $this->assertResponseOk();
         $list = \json_decode($this->response->content(), true);
 
         $this->delete(\sprintf('/mailchimp/lists/%s', $list['list_id']));
@@ -131,6 +132,7 @@ class ListsControllerTest extends ListTestCase
     public function testUpdateListSuccessfully(): void
     {
         $this->post('/mailchimp/lists', static::$listData);
+        $this->assertResponseOk();
         $list = \json_decode($this->response->content(), true);
 
         if (isset($list['mail_chimp_id'])) {
