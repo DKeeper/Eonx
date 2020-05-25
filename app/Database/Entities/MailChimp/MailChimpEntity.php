@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Database\Entities\MailChimp;
 
 use App\Database\Entities\Entity;
+use App\Utils\ResponseConverter;
 
 abstract class MailChimpEntity extends Entity
 {
@@ -39,5 +40,19 @@ abstract class MailChimpEntity extends Entity
         }
 
         return $array;
+    }
+
+    /**
+     * @param array $item
+     *
+     * @return static
+     */
+    public static function fromMailChimpResponse(array $item): MailChimpEntity
+    {
+        $item = ResponseConverter::prepareResponse($item);
+
+        $item['mailchimp_id'] = $item['id'];
+
+        return new static($item);
     }
 }

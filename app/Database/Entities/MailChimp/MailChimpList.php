@@ -12,14 +12,14 @@ use EoneoPay\Utils\Str;
 class MailChimpList extends MailChimpEntity
 {
     /**
-     * @ORM\Column(name="campaign_defaults", type="array")
+     * @ORM\Column(name="campaign_defaults", type="json")
      *
      * @var array
      */
     private $campaignDefaults;
 
     /**
-     * @ORM\Column(name="contact", type="array")
+     * @ORM\Column(name="contact", type="json")
      *
      * @var array
      */
@@ -121,14 +121,14 @@ class MailChimpList extends MailChimpEntity
             'campaign_defaults' => 'required|array',
             'campaign_defaults.from_name' => 'required|string',
             'campaign_defaults.from_email' => 'required|string',
-            'campaign_defaults.subject' => 'required|string',
+            'campaign_defaults.subject' => 'nullable|string', // This is optional settings
             'campaign_defaults.language' => 'required|string',
             'contact' => 'required|array',
             'contact.company' => 'required|string',
             'contact.address1' => 'required|string',
             'contact.address2' => 'nullable|string',
             'contact.city' => 'required|string',
-            'contact.state' => 'required|string',
+            'contact.state' => 'nullable|string',
             'contact.zip' => 'required|string',
             'contact.country' => 'required|string|size:2',
             'contact.phone' => 'nullable|string',

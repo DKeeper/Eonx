@@ -9,6 +9,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Mailchimp\Mailchimp;
 
 class ListsController extends Controller
@@ -53,6 +54,8 @@ class ListsController extends Controller
             ]);
         }
 
+        $this->entityManager->beginTransaction();
+
         try {
             // Save list into db
             $this->saveEntity($list);
@@ -60,7 +63,9 @@ class ListsController extends Controller
             $response = $this->mailChimp->post('lists', $list->toMailChimpArray());
             // Set MailChimp id on the list and save list into db
             $this->saveEntity($list->setMailChimpId($response->get('id')));
+            $this->entityManager->commit();
         } catch (Exception $exception) {
+            $this->entityManager->rollback();
             // Return error response if something goes wrong
             return $this->errorResponse(['message' => $exception->getMessage()]);
         }
@@ -87,12 +92,17 @@ class ListsController extends Controller
             );
         }
 
+        $this->entityManager->beginTransaction();
+
         try {
             // Remove list from database
             $this->removeEntity($list);
             // Remove list from MailChimp
             $this->mailChimp->delete(\sprintf('lists/%s', $list->getMailChimpId()));
+            $this->entityManager->commit();
         } catch (Exception $exception) {
+            $this->entityManager->rollback();
+
             return $this->errorResponse(['message' => $exception->getMessage()]);
         }
 
@@ -109,13 +119,43 @@ class ListsController extends Controller
     public function show(string $listId): JsonResponse
     {
         /** @var \App\Database\Entities\MailChimp\MailChimpList|null $list */
-        $list = $this->entityManager->getRepository(MailChimpList::class)->find($listId);
+        $list = $this->entityManager->getRepository(MailChimpList::class)->findOneByMailChimpId($listId);
 
         if ($list === null) {
-            return $this->errorResponse(
-                ['message' => \sprintf('MailChimpList[%s] not found', $listId)],
-                404
-            );
+            try {
+                /** @var Collection $response */
+                $response = $this->mailChimp->get(\sprintf('lists/%s', $listId));
+            } catch (Exception $e) {
+                return $this->errorResponse(
+                    ['message' => \sprintf('MailChimpList[%s] not found', $listId)],
+                    404
+                );
+            }
+
+            // Instantiate entity
+            $list = MailChimpList::fromMailChimpResponse($response->all());
+            // Validate entity
+            $validator = $this->getValidationFactory()->make($list->toMailChimpArray(), $list->getValidationRules());
+
+            if ($validator->fails()) {
+                // Return error response if validation failed
+                return $this->errorResponse([
+                    'message' => 'Invalid data given',
+                    'errors' => $validator->errors()->toArray()
+                ]);
+            }
+
+            $this->entityManager->beginTransaction();
+
+            try {
+                // Save list into db
+                $this->saveEntity($list);
+                $this->entityManager->commit();
+            } catch (Exception $exception) {
+                $this->entityManager->rollback();
+                // Return error response if something goes wrong
+                return $this->errorResponse(['message' => $exception->getMessage()]);
+            }
         }
 
         return $this->successfulResponse($list->toArray());
@@ -155,12 +195,17 @@ class ListsController extends Controller
             ]);
         }
 
+        $this->entityManager->beginTransaction();
+
         try {
             // Update list into database
             $this->saveEntity($list);
             // Update list into MailChimp
             $this->mailChimp->patch(\sprintf('lists/%s', $list->getMailChimpId()), $list->toMailChimpArray());
+            $this->entityManager->commit();
         } catch (Exception $exception) {
+            $this->entityManager->rollback();
+
             return $this->errorResponse(['message' => $exception->getMessage()]);
         }
 
