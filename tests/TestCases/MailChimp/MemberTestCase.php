@@ -138,7 +138,6 @@ abstract class MemberTestCase extends WithDatabaseTestCase
     protected function assertExceptionResponse(JsonResponse $response, string $message, int $statusCode): void
     {
         $content = \json_decode($response->content(), true);
-        fwrite(STDERR, $response->content() . PHP_EOL);
 
         self::assertEquals($statusCode, $response->getStatusCode());
         self::assertArrayHasKey('message', $content);
