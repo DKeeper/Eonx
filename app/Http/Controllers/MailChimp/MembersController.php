@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Utils\ResponseConverter;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -17,15 +18,15 @@ use Mailchimp\Mailchimp;
 class MembersController extends Controller
 {
     /**
-     * @var \Mailchimp\Mailchimp
+     * @var Mailchimp
      */
     private $mailChimp;
 
     /**
      * ListsController constructor.
      *
-     * @param \Doctrine\ORM\EntityManagerInterface $entityManager
-     * @param \Mailchimp\Mailchimp $mailchimp
+     * @param EntityManagerInterface $entityManager
+     * @param Mailchimp $mailchimp
      */
     public function __construct(EntityManagerInterface $entityManager, Mailchimp $mailchimp)
     {
@@ -58,7 +59,7 @@ class MembersController extends Controller
             foreach (Arr::get($response->all(), 'members', []) as $item) {
                 $member = new MailChimpMember(ResponseConverter::prepareResponse($item));
                 // Validate entity
-                $validator = $this->getValidationFactory()->make($member->toMailChimpArray(), $member->getValidationRules());
+                $validator = $this->getValidator($member);
 
                 if ($validator->fails()) {
                     // Return error response if validation failed
@@ -121,7 +122,7 @@ class MembersController extends Controller
 
             $member = new MailChimpMember(ResponseConverter::prepareResponse($response->all()));
             // Validate entity
-            $validator = $this->getValidationFactory()->make($member->toMailChimpArray(), $member->getValidationRules());
+            $validator = $this->getValidator($member);
 
             if ($validator->fails()) {
                 // Return error response if validation failed
@@ -159,7 +160,7 @@ class MembersController extends Controller
         $member->setListId($listId);
 
         // Validate entity
-        $validator = $this->getValidationFactory()->make($member->toMailChimpArray(), $member->getValidationRules());
+        $validator = $this->getValidator($member);
 
         if ($validator->fails()) {
             // Return error response if validation failed
@@ -247,7 +248,6 @@ class MembersController extends Controller
 
         if ($member === null) {
             try {
-                /** @var Collection $response */
                 $response = $this->mailChimp->get(\sprintf('/lists/%s/members/%s', $listId, $email));
             } catch (Exception $e) {
                 return $this->errorResponse(
@@ -258,7 +258,7 @@ class MembersController extends Controller
 
             $member = new MailChimpMember(ResponseConverter::prepareResponse($response->all()));
             // Validate entity
-            $validator = $this->getValidationFactory()->make($member->toMailChimpArray(), $member->getValidationRules());
+            $validator = $this->getValidator($member);
 
             if ($validator->fails()) {
                 // Return error response if validation failed
@@ -283,7 +283,7 @@ class MembersController extends Controller
 
         $member->fill($request->all());
 
-        $validator = $this->getValidationFactory()->make($member->toMailChimpArray(), $member->getValidationRules());
+        $validator = $this->getValidator($member);
 
         if ($validator->fails()) {
             // Return error response if validation failed
@@ -308,5 +308,15 @@ class MembersController extends Controller
         }
 
         return $this->successfulResponse($member->toArray());
+    }
+
+    /**
+     * @param MailChimpMember $member
+     *
+     * @return Validator
+     */
+    protected function getValidator(MailChimpMember $member): Validator
+    {
+        return $this->getValidationFactory()->make($member->toMailChimpArray(), $member->getValidationRules());
     }
 }

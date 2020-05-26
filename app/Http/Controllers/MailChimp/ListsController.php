@@ -9,21 +9,20 @@ use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Mailchimp\Mailchimp;
 
 class ListsController extends Controller
 {
     /**
-     * @var \Mailchimp\Mailchimp
+     * @var Mailchimp
      */
     private $mailChimp;
 
     /**
      * ListsController constructor.
      *
-     * @param \Doctrine\ORM\EntityManagerInterface $entityManager
-     * @param \Mailchimp\Mailchimp $mailchimp
+     * @param EntityManagerInterface $entityManager
+     * @param Mailchimp $mailchimp
      */
     public function __construct(EntityManagerInterface $entityManager, Mailchimp $mailchimp)
     {
@@ -35,9 +34,9 @@ class ListsController extends Controller
     /**
      * Create MailChimp list.
      *
-     * @param \Illuminate\Http\Request $request
+     * @param Request $request
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function create(Request $request): JsonResponse
     {
@@ -78,11 +77,11 @@ class ListsController extends Controller
      *
      * @param string $listId
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function remove(string $listId): JsonResponse
     {
-        /** @var \App\Database\Entities\MailChimp\MailChimpList|null $list */
+        /** @var MailChimpList|null $list */
         $list = $this->entityManager->getRepository(MailChimpList::class)->find($listId);
 
         if ($list === null) {
@@ -114,16 +113,15 @@ class ListsController extends Controller
      *
      * @param string $listId
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function show(string $listId): JsonResponse
     {
-        /** @var \App\Database\Entities\MailChimp\MailChimpList|null $list */
+        /** @var MailChimpList|null $list */
         $list = $this->entityManager->getRepository(MailChimpList::class)->findOneByMailChimpId($listId);
 
         if ($list === null) {
             try {
-                /** @var Collection $response */
                 $response = $this->mailChimp->get(\sprintf('lists/%s', $listId));
             } catch (Exception $e) {
                 return $this->errorResponse(
@@ -164,14 +162,14 @@ class ListsController extends Controller
     /**
      * Update MailChimp list.
      *
-     * @param \Illuminate\Http\Request $request
+     * @param Request $request
      * @param string $listId
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function update(Request $request, string $listId): JsonResponse
     {
-        /** @var \App\Database\Entities\MailChimp\MailChimpList|null $list */
+        /** @var MailChimpList|null $list */
         $list = $this->entityManager->getRepository(MailChimpList::class)->find($listId);
 
         if ($list === null) {

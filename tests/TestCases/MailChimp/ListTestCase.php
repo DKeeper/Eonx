@@ -197,7 +197,7 @@ abstract class ListTestCase extends WithDatabaseTestCase
      * @param string $method
      * @param string $message
      *
-     * @return \Mockery\MockInterface
+     * @return MockInterface
      *
      * @SuppressWarnings(PHPMD.StaticAccess) Mockery requires static access to mock()
      */

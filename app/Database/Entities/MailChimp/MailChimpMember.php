@@ -139,6 +139,14 @@ class MailChimpMember extends MailChimpEntity
     }
 
     /**
+     * @return string
+     */
+    public function getEmailAddress(): string
+    {
+        return $this->emailAddress;
+    }
+
+    /**
      * @param string $status
      *
      * @return MailChimpMember

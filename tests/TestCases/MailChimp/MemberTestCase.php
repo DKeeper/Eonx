@@ -4,11 +4,19 @@ declare(strict_types=1);
 namespace Tests\App\TestCases\MailChimp;
 
 use App\Database\Entities\MailChimp\MailChimpMember;
+use Illuminate\Http\JsonResponse;
 use Mailchimp\Mailchimp;
+use Mockery;
+use Mockery\MockInterface;
 use Tests\App\TestCases\WithDatabaseTestCase;
 
 abstract class MemberTestCase extends WithDatabaseTestCase
 {
+    protected const MAILCHIMP_EXCEPTION_MESSAGE = 'MailChimp exception';
+    protected const ENTITY_NOT_FOUND_EXCEPTION = 'MailChimpMember[%s] not found in list %s';
+    protected const API_MAIL_CHIMP_INVALID_DATA_EXCEPTION_MESSAGE = 'Invalid data given during update data in DB';
+    protected const API_INVALID_DATA_EXCEPTION_MESSAGE = 'Invalid data given';
+
     /**
      * @var array
      */
@@ -70,7 +78,7 @@ abstract class MemberTestCase extends WithDatabaseTestCase
      */
     protected function createMember(array $data): MailChimpMember
     {
-        $member = new MailChimpMember($data);
+        $member = new MailChimpMember(array_merge($data, ['list_id' => $this->getListId()]));
 
         $this->entityManager->persist($member);
         $this->entityManager->flush();
@@ -91,5 +99,67 @@ abstract class MemberTestCase extends WithDatabaseTestCase
             $this->entityManager->remove($member);
             $this->entityManager->flush();
         }
+    }
+
+    /**
+     * Returns mock of MailChimp to trow exception when requesting their API.
+     *
+     * @param string $method
+     * @param string $message
+     *
+     * @return MockInterface
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess) Mockery requires static access to mock()
+     */
+    protected function mockMailChimpForException(string $method, string $message): MockInterface
+    {
+        $mailChimp = Mockery::mock(Mailchimp::class);
+
+        $mailChimp
+            ->shouldReceive($method)
+            ->once()
+            ->withArgs(static function (string $method, ?array $options = null) {
+                return !empty($method) && (null === $options || \is_array($options));
+            })
+            ->andThrow(new \Exception($message));
+
+        return $mailChimp;
+    }
+
+    /**
+     * Asserts error response when MailChimp exception is thrown.
+     *
+     * @param JsonResponse $response
+     * @param string $message
+     * @param int $statusCode
+     *
+     * @return void
+     */
+    protected function assertExceptionResponse(JsonResponse $response, string $message, int $statusCode): void
+    {
+        $content = \json_decode($response->content(), true);
+        fwrite(STDERR, $response->content() . PHP_EOL);
+
+        self::assertEquals($statusCode, $response->getStatusCode());
+        self::assertArrayHasKey('message', $content);
+        self::assertEquals($message, $content['message']);
+    }
+
+    /**
+     * Asserts error response when MailChimp exception is thrown.
+     *
+     * @param JsonResponse $response
+     * @param array $expected
+     *
+     * @return void
+     */
+    protected function assertSuccessfulResponse(JsonResponse $response, array $expected): void
+    {
+        $content = \json_decode($response->content(), true);
+        // Remove unique ID
+        unset($content['member_id']);
+
+        self::assertEquals(200, $response->getStatusCode());
+        self::assertEquals($expected, $content);
     }
 }
