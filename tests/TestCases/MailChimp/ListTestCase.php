@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Tests\App\TestCases\MailChimp;
 
 use App\Database\Entities\MailChimp\MailChimpList;
+use Faker\Provider\Base;
 use Illuminate\Http\JsonResponse;
 use Mailchimp\Mailchimp;
 use Mockery;
@@ -13,6 +14,8 @@ use Tests\App\TestCases\WithDatabaseTestCase;
 abstract class ListTestCase extends WithDatabaseTestCase
 {
     protected const MAILCHIMP_EXCEPTION_MESSAGE = 'MailChimp exception';
+    protected const API_INVALID_DATA_EXCEPTION_MESSAGE = 'Invalid data given';
+    protected const ENTITY_NOT_FOUND_EXCEPTION = 'MailChimpList[%s] not found';
 
     /**
      * @var array
@@ -38,6 +41,33 @@ abstract class ListTestCase extends WithDatabaseTestCase
         ],
         'campaign_defaults' => [
             'from_name' => 'John Doe',
+            'from_email' => 'john@doe.com',
+            'subject' => 'My new campaign!',
+            'language' => 'US'
+        ],
+        'visibility' => 'prv',
+        'use_archive_bar' => false,
+        'notify_on_subscribe' => 'notify@loyaltycorp.com.au',
+        'notify_on_unsubscribe' => 'notify@loyaltycorp.com.au'
+    ];
+
+    /**
+     * @var array
+     */
+    protected static $invalidListData = [
+        'permission_reminder' => 'You signed up for updates on Greeks economy.',
+        'email_type_option' => false,
+        'contact' => [
+            'company' => 'Doe Ltd.',
+            'address1' => 'DoeStreet 1',
+            'address2' => '',
+            'city' => 'Doesy',
+            'state' => 'Doedoe',
+            'zip' => '1672-12',
+            'country' => 'US',
+            'phone' => '55533344412'
+        ],
+        'campaign_defaults' => [
             'from_email' => 'john@doe.com',
             'subject' => 'My new campaign!',
             'language' => 'US'
@@ -95,17 +125,37 @@ abstract class ListTestCase extends WithDatabaseTestCase
     /**
      * Asserts error response when MailChimp exception is thrown.
      *
-     * @param \Illuminate\Http\JsonResponse $response
+     * @param JsonResponse $response
+     * @param string $message
+     * @param int $statusCode
      *
      * @return void
      */
-    protected function assertMailChimpExceptionResponse(JsonResponse $response): void
+    protected function assertExceptionResponse(JsonResponse $response, string $message, int $statusCode): void
     {
         $content = \json_decode($response->content(), true);
 
-        self::assertEquals(400, $response->getStatusCode());
+        self::assertEquals($statusCode, $response->getStatusCode());
         self::assertArrayHasKey('message', $content);
-        self::assertEquals(self::MAILCHIMP_EXCEPTION_MESSAGE, $content['message']);
+        self::assertEquals($message, $content['message']);
+    }
+
+    /**
+     * Asserts error response when MailChimp exception is thrown.
+     *
+     * @param JsonResponse $response
+     * @param array $expected
+     *
+     * @return void
+     */
+    protected function assertSuccessfulResponse(JsonResponse $response, array $expected): void
+    {
+        $content = \json_decode($response->content(), true);
+        // Remove unique ID
+        unset($content['list_id']);
+
+        self::assertEquals(200, $response->getStatusCode());
+        self::assertEquals($expected, $content);
     }
 
     /**
@@ -118,6 +168,7 @@ abstract class ListTestCase extends WithDatabaseTestCase
     protected function createList(array $data): MailChimpList
     {
         $list = new MailChimpList($data);
+        $list->setMailChimpId(Base::randomAscii());
 
         $this->entityManager->persist($list);
         $this->entityManager->flush();
@@ -126,25 +177,41 @@ abstract class ListTestCase extends WithDatabaseTestCase
     }
 
     /**
+     * Remove MailChimp list from database.
+     *
+     * @param string $listId
+     */
+    protected function removeList(string $listId): void
+    {
+        $list = $this->entityManager->getRepository(MailChimpList::class)->find($listId);
+
+        if ($list !== null) {
+            $this->entityManager->remove($list);
+            $this->entityManager->flush();
+        }
+    }
+
+    /**
      * Returns mock of MailChimp to trow exception when requesting their API.
      *
      * @param string $method
+     * @param string $message
      *
      * @return \Mockery\MockInterface
      *
      * @SuppressWarnings(PHPMD.StaticAccess) Mockery requires static access to mock()
      */
-    protected function mockMailChimpForException(string $method): MockInterface
+    protected function mockMailChimpForException(string $method, string $message): MockInterface
     {
         $mailChimp = Mockery::mock(Mailchimp::class);
 
         $mailChimp
             ->shouldReceive($method)
             ->once()
-            ->withArgs(function (string $method, ?array $options = null) {
+            ->withArgs(static function (string $method, ?array $options = null) {
                 return !empty($method) && (null === $options || \is_array($options));
             })
-            ->andThrow(new \Exception(self::MAILCHIMP_EXCEPTION_MESSAGE));
+            ->andThrow(new \Exception($message));
 
         return $mailChimp;
     }
